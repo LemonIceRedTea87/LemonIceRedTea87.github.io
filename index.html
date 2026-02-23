@@ -195,7 +195,7 @@
 
             if (img) {
                 // 保持比例裁切繪製
-                const scale = Math.max(item.radius * 2 / img.width, item.radius * 2 / img.height);
+                const scale = (item.radius * 2 * 0.9) / Math.max(img.width, img.height);
                 const w = img.width * scale;
                 const h = img.height * scale;
                 ctx.drawImage(img, -w/2, -h/2, w, h);
@@ -253,4 +253,5 @@
 </script>
 
 </body>
+
 </html>
