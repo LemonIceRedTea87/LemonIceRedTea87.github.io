@@ -9,7 +9,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #1a1a1a;
+            background-color: #f39c12; /* 改回較深的背景底色 */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -23,8 +23,8 @@
             width: 100%;
             max-width: 450px;
             height: 100%;
-            background: radial-gradient(circle, #333 0%, #000 100%);
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            background: #fef0cd; /* 改回經典的黃色背景 */
+            box-shadow: 0 0 30px rgba(0,0,0,0.3);
         }
         canvas {
             display: block;
@@ -38,14 +38,14 @@
             pointer-events: none;
         }
         .score-box {
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(255, 255, 255, 0.9);
             padding: 10px 25px;
             border-radius: 40px;
             font-size: 26px;
             font-weight: 900;
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(255,255,255,0.1);
-            border: 2px solid #555;
+            color: #d35400;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border: 2px solid #f39c12;
         }
         #game-over {
             position: absolute;
@@ -53,22 +53,22 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.85);
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             color: white;
             z-index: 100;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(5px);
         }
-        #game-over h1 { font-size: 48px; color: #fff; margin-bottom: 10px; }
+        #game-over h1 { font-size: 48px; color: #f1c40f; margin-bottom: 10px; }
         #game-over button {
             padding: 15px 50px;
             font-size: 22px;
             border-radius: 50px;
-            background: #fff;
-            color: #000;
+            background: #e74c3c;
+            color: #fff;
             border: none;
             cursor: pointer;
             margin-top: 30px;
@@ -91,7 +91,7 @@
 </div>
 
 <script>
-    // 遊戲物件設定 - 全部改為黑色背景球體
+    // 遊戲物件設定 - 保持黑色背景球體，圖片高清渲染
     const ITEMS = [
         { level: 0, radius: 32, imgPath: '圖片_20260223233154_107_93.jpg', name: '燈塔', bgColor: '#000000', borderColor: '#ffffff' },
         { level: 1, radius: 48, imgPath: '圖片_20260223233155_108_93.jpg', name: '教堂', bgColor: '#000000', borderColor: '#ffffff' },
@@ -107,14 +107,14 @@
         img.onload = () => { loadedImages[item.level] = img; };
     });
 
-    const { Engine, Render, Runner, Bodies, Composite, Events, Body } = Matter;
+    const { Engine, Runner, Bodies, Composite, Events, Body } = Matter;
 
     let engine, world, runner, currentBody = null, canDrop = true, score = 0, isGameOver = false;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('game-container');
     
-    const dpr = window.devicePixelRatio || 2; // 強制提高像素比以應對模糊
+    const dpr = window.devicePixelRatio || 2;
 
     function init() {
         const width = container.clientWidth;
@@ -128,9 +128,10 @@
         engine = Engine.create();
         world = engine.world;
         
+        // 牆壁
         const ground = Bodies.rectangle(width/2, height + 50, width * 2, 100, { isStatic: true, friction: 0.8 });
-        const leftWall = Bodies.rectangle(-50, height/2, 100, height, { isStatic: true });
-        const rightWall = Bodies.rectangle(width + 50, height/2, 100, height, { isStatic: true });
+        const leftWall = Bodies.rectangle(-50, height/2, 100, height, { isStatic: true, friction: 0.1 });
+        const rightWall = Bodies.rectangle(width + 50, height/2, 100, height, { isStatic: true, friction: 0.1 });
         Composite.add(world, [ground, leftWall, rightWall]);
 
         Events.on(engine, 'collisionStart', (event) => {
@@ -150,7 +151,7 @@
                             Composite.add(world, newObj);
                             score += (newLevel + 1) * 20;
                             document.getElementById('score').innerText = score;
-                        }, 50);
+                        }, 20);
                     }
                 }
             });
@@ -185,7 +186,7 @@
         ctx.setLineDash([5, 5]);
         ctx.moveTo(0, 150);
         ctx.lineTo(width, 150);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.strokeStyle = 'rgba(211, 84, 0, 0.4)';
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -199,13 +200,13 @@
             ctx.translate(body.position.x, body.position.y);
             ctx.rotate(body.angle);
             
-            // 1. 黑色球體背景
+            // 黑色球體背景
             ctx.beginPath();
             ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
             ctx.fillStyle = item.bgColor;
             ctx.fill();
             
-            // 2. 裁切並繪製圖片 (高清設定)
+            // 繪製圖片
             ctx.save();
             ctx.beginPath();
             ctx.arc(0, 0, item.radius - 2, 0, Math.PI * 2);
@@ -221,16 +222,16 @@
             }
             ctx.restore();
 
-            // 3. 外框
+            // 外框
             ctx.beginPath();
             ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
             ctx.lineWidth = 2;
             ctx.strokeStyle = item.borderColor;
             ctx.stroke();
 
-            // 4. 高光感效果
+            // 高光感
             const gradient = ctx.createRadialGradient(-item.radius/3, -item.radius/3, 0, 0, 0, item.radius);
-            gradient.addColorStop(0, 'rgba(255,255,255,0.2)');
+            gradient.addColorStop(0, 'rgba(255,255,255,0.25)');
             gradient.addColorStop(1, 'rgba(255,255,255,0)');
             ctx.fillStyle = gradient;
             ctx.fill();
@@ -245,7 +246,9 @@
     }
 
     function handleInput(e) {
-        if (!canDrop || !currentBody) return;
+        if (!currentBody) return;
+        
+        // 獲取當前坐標
         const clientX = e.clientX || (e.touches && e.touches[0].clientX);
         if (clientX === undefined) return;
 
@@ -255,14 +258,21 @@
         const width = container.clientWidth;
         const item = ITEMS[currentBody.level];
         const safeX = Math.max(item.radius, Math.min(x, width - item.radius));
-        Body.setPosition(currentBody, { x: safeX, y: 70 });
+        
+        // 如果還在預備狀態，更新位置
+        if (canDrop) {
+            Body.setPosition(currentBody, { x: safeX, y: 70 });
+        }
 
+        // 放開按鈕或觸控結束
         if (e.type === 'mouseup' || e.type === 'touchend') {
-            canDrop = false;
-            Body.setStatic(currentBody, false);
-            currentBody.isSensor = false;
-            currentBody = null;
-            setTimeout(spawnNext, 800);
+            if (canDrop) {
+                canDrop = false;
+                Body.setStatic(currentBody, false);
+                currentBody.isSensor = false;
+                currentBody = null;
+                setTimeout(spawnNext, 800);
+            }
         }
     }
 
@@ -277,11 +287,12 @@
         location.reload();
     }
 
-    container.addEventListener('mousemove', handleInput);
-    container.addEventListener('mouseup', handleInput);
+    // 重新綁定事件，確保 mouseup/touchend 即使在外面放開也能觸發
+    window.addEventListener('mousemove', handleInput);
+    window.addEventListener('mouseup', handleInput);
     container.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
     container.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
-    container.addEventListener('touchend', handleInput);
+    window.addEventListener('touchend', handleInput);
 
     window.onload = init;
 </script>
