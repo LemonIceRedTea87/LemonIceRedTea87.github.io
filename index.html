@@ -9,7 +9,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #2c3e50;
+            background-color: #1a1a1a;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -23,8 +23,8 @@
             width: 100%;
             max-width: 450px;
             height: 100%;
-            background-color: #fef0cd;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: radial-gradient(circle, #333 0%, #000 100%);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
         }
         canvas {
             display: block;
@@ -33,19 +33,19 @@
         }
         #ui-layer {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 20px;
+            left: 20px;
             pointer-events: none;
         }
         .score-box {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 8px 20px;
-            border-radius: 30px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #d35400;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: 2px solid #f39c12;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 25px;
+            border-radius: 40px;
+            font-size: 26px;
+            font-weight: 900;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(255,255,255,0.1);
+            border: 2px solid #555;
         }
         #game-over {
             position: absolute;
@@ -53,24 +53,26 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             color: white;
             z-index: 100;
+            backdrop-filter: blur(10px);
         }
-        #game-over h1 { font-size: 40px; color: #f1c40f; margin-bottom: 10px; }
+        #game-over h1 { font-size: 48px; color: #fff; margin-bottom: 10px; }
         #game-over button {
-            padding: 12px 40px;
-            font-size: 20px;
-            border-radius: 30px;
-            background: #e74c3c;
-            color: white;
+            padding: 15px 50px;
+            font-size: 22px;
+            border-radius: 50px;
+            background: #fff;
+            color: #000;
             border: none;
             cursor: pointer;
-            margin-top: 20px;
+            margin-top: 30px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -78,24 +80,24 @@
 
 <div id="game-container">
     <div id="ui-layer">
-        <div class="score-box">分數: <span id="score">0</span></div>
+        <div class="score-box">得分: <span id="score">0</span></div>
     </div>
     <canvas id="gameCanvas"></canvas>
     <div id="game-over">
         <h1>遊戲結束</h1>
-        <p style="font-size: 20px;">得分: <span id="final-score">0</span></p>
-        <button onclick="restartGame()">重新開始</button>
+        <p style="font-size: 24px;">最終分數: <span id="final-score">0</span></p>
+        <button onclick="restartGame()">再玩一次</button>
     </div>
 </div>
 
 <script>
-    // 遊戲物件設定 - 對應你提供的五張圖片
+    // 遊戲物件設定 - 全部改為黑色背景球體
     const ITEMS = [
-        { level: 0, radius: 28, imgPath: '圖片_20260223233154_107_93.jpg', name: '燈塔' },
-        { level: 1, radius: 42, imgPath: '圖片_20260223233155_108_93.jpg', name: '教堂' },
-        { level: 2, radius: 65, imgPath: '圖片_20260223233157_111_93.jpg', name: '媽閣廟' },
-        { level: 3, radius: 95, imgPath: '圖片_20260223233157_110_93.jpg', name: '旅遊塔' },
-        { level: 4, radius: 135, imgPath: '圖片_20260223233156_109_93.jpg', name: '新葡京' }
+        { level: 0, radius: 32, imgPath: '圖片_20260223233154_107_93.jpg', name: '燈塔', bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 1, radius: 48, imgPath: '圖片_20260223233155_108_93.jpg', name: '教堂', bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 2, radius: 75, imgPath: '圖片_20260223233157_111_93.jpg', name: '媽閣廟', bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 3, radius: 110, imgPath: '圖片_20260223233157_110_93.jpg', name: '旅遊塔', bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 4, radius: 150, imgPath: '圖片_20260223233156_109_93.jpg', name: '新葡京', bgColor: '#000000', borderColor: '#ffffff' }
     ];
 
     const loadedImages = {};
@@ -111,18 +113,22 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('game-container');
+    
+    const dpr = window.devicePixelRatio || 2; // 強制提高像素比以應對模糊
 
     function init() {
         const width = container.clientWidth;
         const height = container.clientHeight;
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
 
         engine = Engine.create();
         world = engine.world;
         
-        // 牆壁
-        const ground = Bodies.rectangle(width/2, height + 50, width, 100, { isStatic: true, friction: 0.5 });
+        const ground = Bodies.rectangle(width/2, height + 50, width * 2, 100, { isStatic: true, friction: 0.8 });
         const leftWall = Bodies.rectangle(-50, height/2, 100, height, { isStatic: true });
         const rightWall = Bodies.rectangle(width + 50, height/2, 100, height, { isStatic: true });
         Composite.add(world, [ground, leftWall, rightWall]);
@@ -142,7 +148,7 @@
                             const newObj = Bodies.circle(newPos.x, newPos.y, nextItem.radius, { restitution: 0.3, friction: 0.5 });
                             newObj.level = newLevel;
                             Composite.add(world, newObj);
-                            score += (newLevel + 1) * 5;
+                            score += (newLevel + 1) * 20;
                             document.getElementById('score').innerText = score;
                         }, 50);
                     }
@@ -158,9 +164,9 @@
 
     function spawnNext() {
         if (isGameOver) return;
-        const level = Math.random() > 0.7 ? 1 : 0;
+        const level = Math.random() > 0.85 ? 1 : 0;
         const item = ITEMS[level];
-        currentBody = Bodies.circle(canvas.width / 2, 50, item.radius, { isStatic: true, isSensor: true });
+        currentBody = Bodies.circle(container.clientWidth / 2, 70, item.radius, { isStatic: true, isSensor: true });
         currentBody.level = level;
         Composite.add(world, currentBody);
         canDrop = true;
@@ -168,14 +174,18 @@
 
     function loop() {
         if (isGameOver) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(loop);
+        
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        ctx.clearRect(0, 0, width, height);
 
         // 警戒線
         ctx.beginPath();
         ctx.setLineDash([5, 5]);
-        ctx.moveTo(0, 120);
-        ctx.lineTo(canvas.width, 120);
-        ctx.strokeStyle = '#e74c3c';
+        ctx.moveTo(0, 150);
+        ctx.lineTo(width, 150);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -189,51 +199,75 @@
             ctx.translate(body.position.x, body.position.y);
             ctx.rotate(body.angle);
             
+            // 1. 黑色球體背景
             ctx.beginPath();
             ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+            ctx.fillStyle = item.bgColor;
+            ctx.fill();
+            
+            // 2. 裁切並繪製圖片 (高清設定)
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(0, 0, item.radius - 2, 0, Math.PI * 2);
             ctx.clip();
 
             if (img) {
-                // 保持比例裁切繪製
-                const scale = (item.radius * 2 * 0.9) / Math.max(img.width, img.height);
+                const scale = (item.radius * 2 * 0.92) / Math.max(img.width, img.height);
                 const w = img.width * scale;
                 const h = img.height * scale;
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, -w/2, -h/2, w, h);
-            } else {
-                ctx.fillStyle = '#ccc';
-                ctx.fill();
             }
-            
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#fff';
-            ctx.stroke();
             ctx.restore();
 
-            if (!body.isStatic && body.position.y < 120 && Math.abs(body.velocity.y) < 0.1) {
+            // 3. 外框
+            ctx.beginPath();
+            ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = item.borderColor;
+            ctx.stroke();
+
+            // 4. 高光感效果
+            const gradient = ctx.createRadialGradient(-item.radius/3, -item.radius/3, 0, 0, 0, item.radius);
+            gradient.addColorStop(0, 'rgba(255,255,255,0.2)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            ctx.restore();
+
+            // 遊戲結束判定
+            if (!body.isStatic && body.position.y < 150 && Math.abs(body.velocity.y) < 0.05) {
                 endGame();
             }
         });
-
-        requestAnimationFrame(loop);
     }
 
     function handleInput(e) {
         if (!canDrop || !currentBody) return;
-        const x = (e.clientX || e.touches[0].clientX) - container.offsetLeft;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        if (clientX === undefined) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        
+        const width = container.clientWidth;
         const item = ITEMS[currentBody.level];
-        const safeX = Math.max(item.radius, Math.min(x, canvas.width - item.radius));
-        Body.setPosition(currentBody, { x: safeX, y: 50 });
+        const safeX = Math.max(item.radius, Math.min(x, width - item.radius));
+        Body.setPosition(currentBody, { x: safeX, y: 70 });
 
         if (e.type === 'mouseup' || e.type === 'touchend') {
             canDrop = false;
             Body.setStatic(currentBody, false);
             currentBody.isSensor = false;
             currentBody = null;
-            setTimeout(spawnNext, 1000);
+            setTimeout(spawnNext, 800);
         }
     }
 
     function endGame() {
+        if (isGameOver) return;
         isGameOver = true;
         document.getElementById('final-score').innerText = score;
         document.getElementById('game-over').style.display = 'flex';
@@ -245,13 +279,12 @@
 
     container.addEventListener('mousemove', handleInput);
     container.addEventListener('mouseup', handleInput);
-    container.addEventListener('touchstart', handleInput);
-    container.addEventListener('touchmove', handleInput);
+    container.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
+    container.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
     container.addEventListener('touchend', handleInput);
 
-    init();
+    window.onload = init;
 </script>
 
 </body>
-
 </html>
