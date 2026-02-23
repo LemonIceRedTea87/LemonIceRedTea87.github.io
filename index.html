@@ -9,7 +9,7 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #f39c12; /* 改回較深的背景底色 */
+            background-color: #f39c12;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -23,7 +23,7 @@
             width: 100%;
             max-width: 450px;
             height: 100%;
-            background: #fef0cd; /* 改回經典的黃色背景 */
+            background: #fef0cd;
             box-shadow: 0 0 30px rgba(0,0,0,0.3);
         }
         canvas {
@@ -91,7 +91,7 @@
 </div>
 
 <script>
-    // 遊戲物件設定 - 保持黑色背景球體，圖片高清渲染
+    // 遊戲物件設定
     const ITEMS = [
         { level: 0, radius: 32, imgPath: '圖片_20260223233154_107_93.jpg', name: '燈塔', bgColor: '#000000', borderColor: '#ffffff' },
         { level: 1, radius: 48, imgPath: '圖片_20260223233155_108_93.jpg', name: '教堂', bgColor: '#000000', borderColor: '#ffffff' },
@@ -128,12 +128,13 @@
         engine = Engine.create();
         world = engine.world;
         
-        // 牆壁
+        // 牆壁邊界
         const ground = Bodies.rectangle(width/2, height + 50, width * 2, 100, { isStatic: true, friction: 0.8 });
         const leftWall = Bodies.rectangle(-50, height/2, 100, height, { isStatic: true, friction: 0.1 });
         const rightWall = Bodies.rectangle(width + 50, height/2, 100, height, { isStatic: true, friction: 0.1 });
         Composite.add(world, [ground, leftWall, rightWall]);
 
+        // 合成邏輯
         Events.on(engine, 'collisionStart', (event) => {
             event.pairs.forEach(pair => {
                 const { bodyA, bodyB } = pair;
@@ -167,7 +168,11 @@
         if (isGameOver) return;
         const level = Math.random() > 0.85 ? 1 : 0;
         const item = ITEMS[level];
-        currentBody = Bodies.circle(container.clientWidth / 2, 70, item.radius, { isStatic: true, isSensor: true });
+        currentBody = Bodies.circle(container.clientWidth / 2, 70, item.radius, { 
+            isStatic: true, 
+            isSensor: true,
+            label: 'preview' 
+        });
         currentBody.level = level;
         Composite.add(world, currentBody);
         canDrop = true;
@@ -200,13 +205,13 @@
             ctx.translate(body.position.x, body.position.y);
             ctx.rotate(body.angle);
             
-            // 黑色球體背景
+            // 繪製黑色背景球
             ctx.beginPath();
             ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
             ctx.fillStyle = item.bgColor;
             ctx.fill();
             
-            // 繪製圖片
+            // 裁切繪製圖片
             ctx.save();
             ctx.beginPath();
             ctx.arc(0, 0, item.radius - 2, 0, Math.PI * 2);
@@ -222,14 +227,14 @@
             }
             ctx.restore();
 
-            // 外框
+            // 外邊框
             ctx.beginPath();
             ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
             ctx.lineWidth = 2;
             ctx.strokeStyle = item.borderColor;
             ctx.stroke();
 
-            // 高光感
+            // 玻璃高光
             const gradient = ctx.createRadialGradient(-item.radius/3, -item.radius/3, 0, 0, 0, item.radius);
             gradient.addColorStop(0, 'rgba(255,255,255,0.25)');
             gradient.addColorStop(1, 'rgba(255,255,255,0)');
@@ -238,17 +243,16 @@
 
             ctx.restore();
 
-            // 遊戲結束判定
+            // 判定遊戲結束
             if (!body.isStatic && body.position.y < 150 && Math.abs(body.velocity.y) < 0.05) {
                 endGame();
             }
         });
     }
 
-    function handleInput(e) {
-        if (!currentBody) return;
+    function handleMove(e) {
+        if (!currentBody || !canDrop) return;
         
-        // 獲取當前坐標
         const clientX = e.clientX || (e.touches && e.touches[0].clientX);
         if (clientX === undefined) return;
 
@@ -259,21 +263,22 @@
         const item = ITEMS[currentBody.level];
         const safeX = Math.max(item.radius, Math.min(x, width - item.radius));
         
-        // 如果還在預備狀態，更新位置
-        if (canDrop) {
-            Body.setPosition(currentBody, { x: safeX, y: 70 });
-        }
+        Body.setPosition(currentBody, { x: safeX, y: 70 });
+    }
 
-        // 放開按鈕或觸控結束
-        if (e.type === 'mouseup' || e.type === 'touchend') {
-            if (canDrop) {
-                canDrop = false;
-                Body.setStatic(currentBody, false);
-                currentBody.isSensor = false;
-                currentBody = null;
-                setTimeout(spawnNext, 800);
-            }
-        }
+    function handleEnd(e) {
+        if (!currentBody || !canDrop) return;
+
+        canDrop = false;
+        // 關鍵：解除靜態狀態並取消傳感器模式
+        Body.setStatic(currentBody, false);
+        currentBody.isSensor = false;
+        
+        const droppedBody = currentBody;
+        currentBody = null;
+
+        // 800ms 後生成下一個
+        setTimeout(spawnNext, 800);
     }
 
     function endGame() {
@@ -287,12 +292,24 @@
         location.reload();
     }
 
-    // 重新綁定事件，確保 mouseup/touchend 即使在外面放開也能觸發
-    window.addEventListener('mousemove', handleInput);
-    window.addEventListener('mouseup', handleInput);
-    container.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
-    container.addEventListener('touchmove', (e) => { e.preventDefault(); handleInput(e); }, {passive: false});
-    window.addEventListener('touchend', handleInput);
+    // 強化事件綁定
+    container.addEventListener('mousedown', (e) => { canDrop = true; handleMove(e); });
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    // 針對移動端/微信預覽優化
+    container.addEventListener('touchstart', (e) => { 
+        if(e.cancelable) e.preventDefault(); 
+        canDrop = true; 
+        handleMove(e); 
+    }, {passive: false});
+    
+    container.addEventListener('touchmove', (e) => { 
+        if(e.cancelable) e.preventDefault(); 
+        handleMove(e); 
+    }, {passive: false});
+    
+    window.addEventListener('touchend', handleEnd);
 
     window.onload = init;
 </script>
