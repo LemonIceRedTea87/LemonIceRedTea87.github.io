@@ -25,28 +25,77 @@
             height: 100%;
             background: #fef0cd;
             box-shadow: 0 0 30px rgba(0,0,0,0.3);
+            overflow: hidden;
         }
         canvas {
             display: block;
             width: 100%;
             height: 100%;
         }
+        /* 遊戲中 UI */
         #ui-layer {
             position: absolute;
             top: 20px;
             left: 20px;
             pointer-events: none;
+            display: none;
+            z-index: 10;
         }
         .score-box {
             background: rgba(255, 255, 255, 0.9);
-            padding: 10px 25px;
-            border-radius: 40px;
-            font-size: 26px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 24px;
             font-weight: 900;
             color: #d35400;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             border: 2px solid #f39c12;
+            line-height: 1.2;
         }
+        .best-score-text {
+            font-size: 14px;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+        /* 開始頁面 */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(254, 240, 205, 0.3);
+            backdrop-filter: blur(2px);
+            z-index: 60;
+        }
+        #start-screen h1 {
+            font-size: 50px;
+            color: #fff;
+            text-shadow: 3px 3px 10px rgba(0,0,0,0.8), -1px -1px 0 #d35400, 1px -1px 0 #d35400, -1px 1px 0 #d35400, 1px 1px 0 #d35400;
+            margin-bottom: 40px;
+            text-align: center;
+            line-height: 1.1;
+            pointer-events: none;
+        }
+        .btn {
+            padding: 15px 50px;
+            font-size: 24px;
+            border-radius: 50px;
+            background: #e74c3c;
+            color: #fff;
+            border: 4px solid #fff;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+            font-weight: bold;
+            pointer-events: auto;
+            z-index: 70;
+        }
+        .btn:active { transform: scale(0.95); }
+        /* 結算頁面 */
         #game-over {
             position: absolute;
             top: 0;
@@ -63,35 +112,36 @@
             backdrop-filter: blur(5px);
         }
         #game-over h1 { font-size: 48px; color: #f1c40f; margin-bottom: 10px; }
-        #game-over button {
-            padding: 15px 50px;
-            font-size: 22px;
-            border-radius: 50px;
-            background: #e74c3c;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-            margin-top: 30px;
-            font-weight: bold;
-        }
+        .result-text { font-size: 24px; margin: 5px 0; }
+        .highlight { color: #f1c40f; font-weight: bold; font-size: 32px; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div id="ui-layer">
-        <div class="score-box">得分: <span id="score">0</span></div>
-    </div>
     <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-layer">
+        <div class="score-box">
+            得分: <span id="score">0</span><br>
+            <span class="best-score-text">最高: <span id="ui-best-score">0</span></span>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>合成<br>澳門地標</h1>
+        <div class="btn" onclick="startGame()">開始遊戲</div>
+    </div>
+
     <div id="game-over">
         <h1>遊戲結束</h1>
-        <p style="font-size: 24px;">最終分數: <span id="final-score">0</span></p>
-        <button onclick="restartGame()">再玩一次</button>
+        <p class="result-text">本次得分: <span id="final-score" class="highlight">0</span></p>
+        <p class="result-text" style="font-size: 18px; color: #ccc;">歷史最高: <span id="final-best-score">0</span></p>
+        <div class="btn" style="margin-top: 30px;" onclick="startGame()">再玩一次</div>
     </div>
 </div>
 
 <script>
-    // 遊戲物件設定
     const ITEMS = [
         { level: 0, radius: 32, imgPath: '圖片_20260223233154_107_93.jpg', name: '燈塔', bgColor: '#000000', borderColor: '#ffffff' },
         { level: 1, radius: 48, imgPath: '圖片_20260223233155_108_93.jpg', name: '教堂', bgColor: '#000000', borderColor: '#ffffff' },
@@ -109,11 +159,17 @@
 
     const { Engine, Runner, Bodies, Composite, Events, Body } = Matter;
 
-    let engine, world, runner, currentBody = null, canDrop = true, score = 0, isGameOver = false;
+    let engine, world, runner;
+    let currentBody = null;
+    let canDrop = false;
+    let score = 0;
+    let gameState = 'start'; 
+    let bestScore = localStorage.getItem('macauBestScore') || 0;
+    let demoInterval = null;
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('game-container');
-    
     const dpr = window.devicePixelRatio || 2;
 
     function init() {
@@ -128,14 +184,14 @@
         engine = Engine.create();
         world = engine.world;
         
-        // 牆壁邊界
         const ground = Bodies.rectangle(width/2, height + 50, width * 2, 100, { isStatic: true, friction: 0.8 });
         const leftWall = Bodies.rectangle(-50, height/2, 100, height, { isStatic: true, friction: 0.1 });
         const rightWall = Bodies.rectangle(width + 50, height/2, 100, height, { isStatic: true, friction: 0.1 });
         Composite.add(world, [ground, leftWall, rightWall]);
 
-        // 合成邏輯
         Events.on(engine, 'collisionStart', (event) => {
+            if (gameState !== 'playing') return; 
+            
             event.pairs.forEach(pair => {
                 const { bodyA, bodyB } = pair;
                 if (bodyA.level !== undefined && bodyA.level === bodyB.level && !bodyA.isMerging && !bodyB.isMerging) {
@@ -160,12 +216,55 @@
 
         runner = Runner.create();
         Runner.run(runner, engine);
-        spawnNext();
+        
         loop();
+        startDemoBackground();
+    }
+
+    function startDemoBackground() {
+        demoInterval = setInterval(() => {
+            if (gameState === 'start') {
+                const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
+                // 提高停止檢測線，讓球體堆疊得更高一點 (100px)
+                const isFull = bodies.some(b => b.position.y < 100);
+                
+                if (!isFull && bodies.length < 60) {
+                    const level = Math.floor(Math.random() * ITEMS.length);
+                    const item = ITEMS[level];
+                    const randomX = Math.random() * (container.clientWidth - item.radius * 2) + item.radius;
+                    const demoBody = Bodies.circle(randomX, -item.radius * 2, item.radius, { 
+                        restitution: 0.4, 
+                        friction: 0.5,
+                        angle: Math.random() * Math.PI,
+                        torque: (Math.random() - 0.5) * 0.1 // 加入隨機轉動
+                    });
+                    demoBody.level = level;
+                    Composite.add(world, demoBody);
+                }
+            }
+        }, 150); // 加快生成速度至 150ms 一顆
+    }
+
+    function startGame() {
+        if (demoInterval) clearInterval(demoInterval);
+        
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('game-over').style.display = 'none';
+        document.getElementById('ui-layer').style.display = 'block';
+        
+        const bodies = Composite.allBodies(world);
+        bodies.forEach(body => { if (!body.isStatic) Composite.remove(world, body); });
+
+        gameState = 'playing';
+        score = 0;
+        document.getElementById('score').innerText = score;
+        document.getElementById('ui-best-score').innerText = bestScore;
+        
+        spawnNext();
     }
 
     function spawnNext() {
-        if (isGameOver) return;
+        if (gameState !== 'playing') return;
         const level = Math.random() > 0.85 ? 1 : 0;
         const item = ITEMS[level];
         currentBody = Bodies.circle(container.clientWidth / 2, 70, item.radius, { 
@@ -179,21 +278,20 @@
     }
 
     function loop() {
-        if (isGameOver) return;
         requestAnimationFrame(loop);
-        
         const width = container.clientWidth;
         const height = container.clientHeight;
         ctx.clearRect(0, 0, width, height);
 
-        // 警戒線
-        ctx.beginPath();
-        ctx.setLineDash([5, 5]);
-        ctx.moveTo(0, 150);
-        ctx.lineTo(width, 150);
-        ctx.strokeStyle = 'rgba(211, 84, 0, 0.4)';
-        ctx.stroke();
-        ctx.setLineDash([]);
+        if (gameState === 'playing') {
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(0, 150);
+            ctx.lineTo(width, 150);
+            ctx.strokeStyle = 'rgba(211, 84, 0, 0.4)';
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
 
         const bodies = Composite.allBodies(world);
         bodies.forEach(body => {
@@ -205,18 +303,15 @@
             ctx.translate(body.position.x, body.position.y);
             ctx.rotate(body.angle);
             
-            // 繪製黑色背景球
             ctx.beginPath();
             ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
             ctx.fillStyle = item.bgColor;
             ctx.fill();
             
-            // 裁切繪製圖片
             ctx.save();
             ctx.beginPath();
             ctx.arc(0, 0, item.radius - 2, 0, Math.PI * 2);
             ctx.clip();
-
             if (img) {
                 const scale = (item.radius * 2 * 0.92) / Math.max(img.width, img.height);
                 const w = img.width * scale;
@@ -227,14 +322,12 @@
             }
             ctx.restore();
 
-            // 外邊框
             ctx.beginPath();
             ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
             ctx.lineWidth = 2;
             ctx.strokeStyle = item.borderColor;
             ctx.stroke();
 
-            // 玻璃高光
             const gradient = ctx.createRadialGradient(-item.radius/3, -item.radius/3, 0, 0, 0, item.radius);
             gradient.addColorStop(0, 'rgba(255,255,255,0.25)');
             gradient.addColorStop(1, 'rgba(255,255,255,0)');
@@ -243,72 +336,55 @@
 
             ctx.restore();
 
-            // 判定遊戲結束
-            if (!body.isStatic && body.position.y < 150 && Math.abs(body.velocity.y) < 0.05) {
+            if (gameState === 'playing' && !body.isStatic && body.position.y < 150 && Math.abs(body.velocity.y) < 0.05) {
                 endGame();
             }
         });
     }
 
     function handleMove(e) {
-        if (!currentBody || !canDrop) return;
-        
+        if (gameState !== 'playing' || !currentBody || !canDrop) return;
         const clientX = e.clientX || (e.touches && e.touches[0].clientX);
         if (clientX === undefined) return;
-
         const rect = canvas.getBoundingClientRect();
         const x = clientX - rect.left;
-        
-        const width = container.clientWidth;
         const item = ITEMS[currentBody.level];
-        const safeX = Math.max(item.radius, Math.min(x, width - item.radius));
-        
+        const safeX = Math.max(item.radius, Math.min(x, container.clientWidth - item.radius));
         Body.setPosition(currentBody, { x: safeX, y: 70 });
     }
 
     function handleEnd(e) {
-        if (!currentBody || !canDrop) return;
-
+        if (gameState !== 'playing' || !currentBody || !canDrop) return;
         canDrop = false;
-        // 關鍵：解除靜態狀態並取消傳感器模式
         Body.setStatic(currentBody, false);
         currentBody.isSensor = false;
-        
-        const droppedBody = currentBody;
         currentBody = null;
-
-        // 800ms 後生成下一個
         setTimeout(spawnNext, 800);
     }
 
     function endGame() {
-        if (isGameOver) return;
-        isGameOver = true;
+        if (gameState === 'gameover') return;
+        gameState = 'gameover';
+        if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem('macauBestScore', bestScore);
+        }
         document.getElementById('final-score').innerText = score;
+        document.getElementById('final-best-score').innerText = bestScore;
         document.getElementById('game-over').style.display = 'flex';
     }
 
-    function restartGame() {
-        location.reload();
-    }
-
-    // 強化事件綁定
-    container.addEventListener('mousedown', (e) => { canDrop = true; handleMove(e); });
+    container.addEventListener('mousedown', (e) => { if(gameState === 'playing') { canDrop = true; handleMove(e); } });
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleEnd);
-
-    // 針對移動端/微信預覽優化
     container.addEventListener('touchstart', (e) => { 
-        if(e.cancelable) e.preventDefault(); 
-        canDrop = true; 
-        handleMove(e); 
+        if(gameState === 'playing') { 
+            e.preventDefault();
+            canDrop = true; 
+            handleMove(e); 
+        }
     }, {passive: false});
-    
-    container.addEventListener('touchmove', (e) => { 
-        if(e.cancelable) e.preventDefault(); 
-        handleMove(e); 
-    }, {passive: false});
-    
+    container.addEventListener('touchmove', (e) => { if(gameState === 'playing') { e.preventDefault(); handleMove(e); } }, {passive: false});
     window.addEventListener('touchend', handleEnd);
 
     window.onload = init;
@@ -316,3 +392,4 @@
 
 </body>
 </html>
+
