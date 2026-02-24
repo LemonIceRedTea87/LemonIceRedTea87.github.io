@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>合成澳門地標</title>
+    <title>合成澳門地標 - Macau Merge</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body {
@@ -31,6 +31,22 @@
             display: block;
             width: 100%;
             height: 100%;
+        }
+        /* 語言切換按鈕 */
+        #lang-toggle {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #d35400;
+            color: #d35400;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 80;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         /* 遊戲中 UI */
         #ui-layer {
@@ -93,6 +109,7 @@
             font-weight: bold;
             pointer-events: auto;
             z-index: 70;
+            text-align: center;
         }
         .btn:active { transform: scale(0.95); }
         /* 結算頁面 */
@@ -123,34 +140,62 @@
     
     <div id="ui-layer">
         <div class="score-box">
-            得分: <span id="score">0</span><br>
-            <span class="best-score-text">最高: <span id="ui-best-score">0</span></span>
+            <span id="label-score">得分</span>: <span id="score">0</span><br>
+            <span class="best-score-text"><span id="label-best">最高</span>: <span id="ui-best-score">0</span></span>
         </div>
     </div>
 
     <div id="start-screen">
-        <h1>合成<br>澳門地標</h1>
-        <div class="btn" onclick="startGame()">開始遊戲</div>
+        <h1 id="main-title">合成<br>澳門地標</h1>
+        <div class="btn" id="start-btn" onclick="startGame()">開始遊戲</div>
+        <div id="lang-toggle" onclick="toggleLanguage()">English</div>
     </div>
 
     <div id="game-over">
-        <h1>遊戲結束</h1>
-        <p class="result-text">本次得分: <span id="final-score" class="highlight">0</span></p>
-        <p class="result-text" style="font-size: 18px; color: #ccc;">歷史最高: <span id="final-best-score">0</span></p>
-        <div class="btn" style="margin-top: 30px;" onclick="startGame()">再玩一次</div>
+        <h1 id="label-over">遊戲結束</h1>
+        <p class="result-text"><span id="label-final">本次得分</span>: <span id="final-score" class="highlight">0</span></p>
+        <p class="result-text" style="font-size: 18px; color: #ccc;"><span id="label-history">歷史最高</span>: <span id="final-best-score">0</span></p>
+        <div class="btn" id="replay-btn" style="margin-top: 30px;" onclick="startGame()">再玩一次</div>
     </div>
 </div>
 
 <script>
     const ITEMS = [
-        { level: 0, radius: 32, imgPath: '圖片_20260223233154_107_93.jpg', name: '燈塔', bgColor: '#000000', borderColor: '#ffffff' },
-        { level: 1, radius: 48, imgPath: '圖片_20260223233155_108_93.jpg', name: '教堂', bgColor: '#000000', borderColor: '#ffffff' },
-        { level: 2, radius: 75, imgPath: '圖片_20260223233157_111_93.jpg', name: '媽閣廟', bgColor: '#000000', borderColor: '#ffffff' },
-        { level: 3, radius: 110, imgPath: '圖片_20260223233157_110_93.jpg', name: '旅遊塔', bgColor: '#000000', borderColor: '#ffffff' },
-        { level: 4, radius: 150, imgPath: '圖片_20260223233156_109_93.jpg', name: '新葡京', bgColor: '#000000', borderColor: '#ffffff' }
+        { level: 0, radius: 32, imgPath: '圖片_20260223233154_107_93.jpg', names: { cn: '燈塔', en: 'Lighthouse' }, bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 1, radius: 48, imgPath: '圖片_20260223233155_108_93.jpg', names: { cn: '教堂', en: 'Church' }, bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 2, radius: 75, imgPath: '圖片_20260223233157_111_93.jpg', names: { cn: '媽閣廟', en: 'A-Ma Temple' }, bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 3, radius: 110, imgPath: '圖片_20260223233157_110_93.jpg', names: { cn: '旅遊塔', en: 'Macau Tower' }, bgColor: '#000000', borderColor: '#ffffff' },
+        { level: 4, radius: 150, imgPath: '圖片_20260223233156_109_93.jpg', names: { cn: '新葡京', en: 'Grand Lisboa' }, bgColor: '#000000', borderColor: '#ffffff' }
     ];
 
+    const TEXTS = {
+        cn: {
+            title: '合成<br>澳門地標',
+            start: '開始遊戲',
+            score: '得分',
+            best: '最高',
+            over: '遊戲結束',
+            final: '本次得分',
+            history: '歷史最高',
+            replay: '再玩一次',
+            lang: 'English'
+        },
+        en: {
+            title: 'Macau<br>Merge',
+            start: 'Start Game',
+            score: 'Score',
+            best: 'Best',
+            over: 'Game Over',
+            final: 'Final Score',
+            history: 'Record High',
+            replay: 'Play Again',
+            lang: '中文'
+        }
+    };
+
+    let currentLang = localStorage.getItem('macauLang') || 'cn';
     const loadedImages = {};
+    
     ITEMS.forEach(item => {
         const img = new Image();
         img.src = item.imgPath;
@@ -172,6 +217,25 @@
     const container = document.getElementById('game-container');
     const dpr = window.devicePixelRatio || 2;
 
+    function updateLanguageUI() {
+        const t = TEXTS[currentLang];
+        document.getElementById('main-title').innerHTML = t.title;
+        document.getElementById('start-btn').innerText = t.start;
+        document.getElementById('label-score').innerText = t.score;
+        document.getElementById('label-best').innerText = t.best;
+        document.getElementById('label-over').innerText = t.over;
+        document.getElementById('label-final').innerText = t.final;
+        document.getElementById('label-history').innerText = t.history;
+        document.getElementById('replay-btn').innerText = t.replay;
+        document.getElementById('lang-toggle').innerText = t.lang;
+    }
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'cn' ? 'en' : 'cn';
+        localStorage.setItem('macauLang', currentLang);
+        updateLanguageUI();
+    }
+
     function init() {
         const width = container.clientWidth;
         const height = container.clientHeight;
@@ -191,7 +255,6 @@
 
         Events.on(engine, 'collisionStart', (event) => {
             if (gameState !== 'playing') return; 
-            
             event.pairs.forEach(pair => {
                 const { bodyA, bodyB } = pair;
                 if (bodyA.level !== undefined && bodyA.level === bodyB.level && !bodyA.isMerging && !bodyB.isMerging) {
@@ -217,6 +280,7 @@
         runner = Runner.create();
         Runner.run(runner, engine);
         
+        updateLanguageUI();
         loop();
         startDemoBackground();
     }
@@ -225,10 +289,8 @@
         demoInterval = setInterval(() => {
             if (gameState === 'start') {
                 const bodies = Composite.allBodies(world).filter(b => !b.isStatic);
-                // 提高停止檢測線，讓球體堆疊得更高一點 (100px)
                 const isFull = bodies.some(b => b.position.y < 100);
-                
-                if (!isFull && bodies.length < 60) {
+                if (!isFull && bodies.length < 50) {
                     const level = Math.floor(Math.random() * ITEMS.length);
                     const item = ITEMS[level];
                     const randomX = Math.random() * (container.clientWidth - item.radius * 2) + item.radius;
@@ -236,30 +298,26 @@
                         restitution: 0.4, 
                         friction: 0.5,
                         angle: Math.random() * Math.PI,
-                        torque: (Math.random() - 0.5) * 0.1 // 加入隨機轉動
+                        torque: (Math.random() - 0.5) * 0.1 
                     });
                     demoBody.level = level;
                     Composite.add(world, demoBody);
                 }
             }
-        }, 150); // 加快生成速度至 150ms 一顆
+        }, 150);
     }
 
     function startGame() {
         if (demoInterval) clearInterval(demoInterval);
-        
         document.getElementById('start-screen').style.display = 'none';
         document.getElementById('game-over').style.display = 'none';
         document.getElementById('ui-layer').style.display = 'block';
-        
         const bodies = Composite.allBodies(world);
         bodies.forEach(body => { if (!body.isStatic) Composite.remove(world, body); });
-
         gameState = 'playing';
         score = 0;
         document.getElementById('score').innerText = score;
         document.getElementById('ui-best-score').innerText = bestScore;
-        
         spawnNext();
     }
 
@@ -378,11 +436,7 @@
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleEnd);
     container.addEventListener('touchstart', (e) => { 
-        if(gameState === 'playing') { 
-            e.preventDefault();
-            canDrop = true; 
-            handleMove(e); 
-        }
+        if(gameState === 'playing') { e.preventDefault(); canDrop = true; handleMove(e); }
     }, {passive: false});
     container.addEventListener('touchmove', (e) => { if(gameState === 'playing') { e.preventDefault(); handleMove(e); } }, {passive: false});
     window.addEventListener('touchend', handleEnd);
@@ -392,4 +446,3 @@
 
 </body>
 </html>
-
